@@ -7,7 +7,8 @@ use equality_comparison::{abstract_equality_comparison, strict_equality_comparis
 use oxc_ast::{AstBuilder, ast::*};
 
 use crate::{
-    ToBigInt, ToBoolean, ToInt32, ToJsString, ToNumber,
+    StringCharAt, StringCharAtResult, StringCharCodeAt, StringIndexOf, StringLastIndexOf,
+    StringSubstring, ToBigInt, ToBoolean, ToInt32, ToJsString, ToNumber,
     is_less_than::is_less_than,
     side_effects::{MayHaveSideEffects, MayHaveSideEffectsContext},
     to_numeric::ToNumeric,
@@ -154,6 +155,7 @@ impl<'a> ConstantEvaluation<'a> for Expression<'a> {
                 // For sequence expression, the value is the value of the RHS.
                 e.expressions.last().and_then(|e| e.evaluate_value_to(ctx, target_ty))
             }
+            Expression::CallExpression(e) => e.evaluate_value_to(ctx, target_ty),
             _ => None,
         }
     }
@@ -501,5 +503,160 @@ impl<'a> ConstantEvaluation<'a> for ComputedMemberExpression<'a> {
             }
             _ => None,
         }
+    }
+}
+
+impl<'a> ConstantEvaluation<'a> for CallExpression<'a> {
+    fn evaluate_value_to(
+        &self,
+        ctx: &impl ConstantEvaluationCtx<'a>,
+        _target_ty: Option<ValueType>,
+    ) -> Option<ConstantValue<'a>> {
+        let CallExpression { arguments, .. } = self;
+        let (name, object) = match &self.callee {
+            Expression::StaticMemberExpression(member) if !member.optional => {
+                (member.property.name.as_str(), &member.object)
+            }
+            Expression::ComputedMemberExpression(member) if !member.optional => {
+                match &member.expression {
+                    Expression::StringLiteral(s) => (s.value.as_str(), &member.object),
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        };
+
+        if arguments.is_empty() {
+            match name {
+                "toUpperCase" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    return Some(ConstantValue::String(Cow::Owned(value.to_uppercase())));
+                }
+                "toLowerCase" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    return Some(ConstantValue::String(Cow::Owned(value.to_lowercase())));
+                }
+                "trim" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    return Some(ConstantValue::String(Cow::Owned(value.trim().to_string())));
+                }
+                "trimStart" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    return Some(ConstantValue::String(Cow::Owned(value.trim_start().to_string())));
+                }
+                "trimEnd" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    return Some(ConstantValue::String(Cow::Owned(value.trim_end().to_string())));
+                }
+                "charAt" => {}
+                "charCodeAt" => {}
+                "concat" => {}
+                "replace" => {}
+                "replaceAll" => {}
+                "fromCharCode" => {}
+                "toString" => {}
+                "pow" => {}
+                "isFinite" | "isNaN" | "isInteger" | "isSafeInteger" => {}
+                "sqrt" | "cbrt" => {}
+                "abs" | "ceil" | "floor" | "round" | "fround" | "trunc" | "sign" => {}
+                "min" | "max" => {}
+                "of" => {}
+                "startsWith" => {}
+                _ => {}
+            }
+        }
+
+        if arguments.len() == 2 {
+            match name {
+                "substring" | "slice" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    let start_idx = arguments[0].as_expression()?.get_side_free_number_value(ctx);
+                    let end_idx = arguments[1].as_expression()?.get_side_free_number_value(ctx);
+                    if start_idx.is_some_and(|start| start > value.len() as f64 || start < 0.0)
+                        || end_idx.is_some_and(|end| end > value.len() as f64 || end < 0.0)
+                    {
+                        return None;
+                    }
+                    if let (Some(start), Some(end)) = (start_idx, end_idx) {
+                        if start > end {
+                            return None;
+                        }
+                    }
+                    return Some(ConstantValue::String(Cow::Owned(
+                        value.as_ref().substring(start_idx, end_idx),
+                    )));
+                }
+                _ => {}
+            }
+        }
+
+        if arguments.len() <= 1 {
+            match name {
+                "charAt" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    let char_at_index =
+                        arguments[0].as_expression()?.get_side_free_number_value(ctx);
+                    let result = match value.as_ref().char_at(char_at_index) {
+                        StringCharAtResult::InvalidChar(_) => return None,
+                        StringCharAtResult::Value(c) => Cow::Owned(c.to_string()),
+                        StringCharAtResult::OutOfRange => Cow::Borrowed(""),
+                    };
+                    return Some(ConstantValue::String(result));
+                }
+                _ => {}
+            }
+        }
+
+        if arguments.len() <= 2 {
+            match name {
+                "indexOf" | "lastIndexOf" => {
+                    let value =
+                        object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+                    let search_value =
+                        arguments[0].as_expression()?.get_side_free_string_value(ctx);
+                    let search_start_index =
+                        arguments[1].as_expression()?.get_side_free_number_value(ctx);
+                    let result = match name {
+                        "indexOf" => {
+                            value.as_ref().index_of(search_value.as_deref(), search_start_index)
+                        }
+                        "lastIndexOf" => value
+                            .as_ref()
+                            .last_index_of(search_value.as_deref(), search_start_index),
+                        _ => unreachable!(),
+                    };
+                    return Some(ConstantValue::Number(result as f64));
+                }
+                _ => {}
+            }
+        }
+
+        match name {
+            "charCodeAt" => {
+                let value =
+                    object.evaluate_value_to(ctx, Some(ValueType::String))?.into_string()?;
+
+                let char_at_index = match arguments.first() {
+                    Some(Argument::SpreadElement(_)) => return None,
+                    Some(arg @ match_expression!(Argument)) => {
+                        Some(arg.to_expression().get_side_free_number_value(ctx)?)
+                    }
+                    None => None,
+                };
+                let value =
+                    value.as_ref().char_code_at(char_at_index).map_or(f64::NAN, |n| n as f64);
+                return Some(ConstantValue::Number(value));
+            }
+            _ => {}
+        }
+
+        None
     }
 }

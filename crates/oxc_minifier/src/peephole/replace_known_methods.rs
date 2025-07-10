@@ -1,5 +1,6 @@
-use cow_utils::CowUtils;
 use std::borrow::Cow;
+
+use cow_utils::CowUtils;
 
 use oxc_allocator::TakeIn;
 use oxc_ast::ast::*;
@@ -41,54 +42,70 @@ impl<'a> PeepholeOptimizations {
         ctx: &mut Ctx<'a, '_>,
     ) {
         let Expression::CallExpression(ce) = node else { return };
-        let CallExpression { span, callee, arguments, .. } = ce.as_mut();
-        let (name, object) = match &callee {
-            Expression::StaticMemberExpression(member) if !member.optional => {
-                (member.property.name.as_str(), &member.object)
-            }
-            Expression::ComputedMemberExpression(member) if !member.optional => {
-                match &member.expression {
-                    Expression::StringLiteral(s) => (s.value.as_str(), &member.object),
-                    _ => return,
-                }
-            }
-            _ => return,
-        };
-        let replacement = match name {
-            "toLowerCase" | "toUpperCase" | "trim" | "trimStart" | "trimEnd" => {
-                Self::try_fold_string_casing(*span, arguments, name, object, ctx)
-            }
-            "substring" | "slice" => {
-                Self::try_fold_string_substring_or_slice(*span, arguments, object, ctx)
-            }
-            "indexOf" | "lastIndexOf" => {
-                Self::try_fold_string_index_of(*span, arguments, name, object, ctx)
-            }
-            "charAt" => Self::try_fold_string_char_at(*span, arguments, object, ctx),
-            "charCodeAt" => Self::try_fold_string_char_code_at(*span, arguments, object, ctx),
-            "concat" => self.try_fold_concat(*span, arguments, callee, ctx),
-            "replace" | "replaceAll" => {
-                Self::try_fold_string_replace(*span, arguments, name, object, ctx)
-            }
-            "fromCharCode" => Self::try_fold_string_from_char_code(*span, arguments, object, ctx),
-            "toString" => Self::try_fold_to_string(*span, arguments, object, ctx),
-            "pow" => self.try_fold_pow(*span, arguments, object, ctx),
-            "isFinite" | "isNaN" | "isInteger" | "isSafeInteger" => {
-                Self::try_fold_number_methods(*span, arguments, object, name, ctx)
-            }
-            "sqrt" | "cbrt" => Self::try_fold_roots(*span, arguments, name, object, ctx),
-            "abs" | "ceil" | "floor" | "round" | "fround" | "trunc" | "sign" => {
-                Self::try_fold_math_unary(*span, arguments, name, object, ctx)
-            }
-            "min" | "max" => Self::try_fold_math_variadic(*span, arguments, name, object, ctx),
-            "of" => Self::try_fold_array_of(*span, arguments, name, object, ctx),
-            "startsWith" => Self::try_fold_starts_with(*span, arguments, object, ctx),
-            _ => None,
-        };
-        if let Some(replacement) = replacement {
-            state.changed = true;
-            *node = replacement;
+
+        let Some(member_expr) = ce.callee.as_member_expression() else { return };
+
+        if member_expr.optional() {
+            return;
         }
+
+        if !member_expr.object().is_string_literal() {
+            return;
+        }
+
+        let span = ce.span;
+        let Some(value) = node.evaluate_value(ctx) else { return };
+
+        state.changed = true;
+        *node = ctx.value_to_expr(span, value);
+
+        // let (name, object) = match &callee {
+        // Expression::StaticMemberExpression(member) if !member.optional => {
+        // (member.property.name.as_str(), &member.object)
+        // }
+        // Expression::ComputedMemberExpression(member) if !member.optional => {
+        // match &member.expression {
+        // Expression::StringLiteral(s) => (s.value.as_str(), &member.object),
+        // _ => return,
+        // }
+        // }
+        // _ => return,
+        // };
+        // let replacement = match name {
+        // "toUpperCase" | "trim" | "trimStart" | "trimEnd" => {
+        // Self::try_fold_string_casing(*span, arguments, name, object, ctx)
+        // }
+        // "substring" | "slice" => {
+        // Self::try_fold_string_substring_or_slice(*span, arguments, object, ctx)
+        // }
+        // "indexOf" | "lastIndexOf" => {
+        // Self::try_fold_string_index_of(*span, arguments, name, object, ctx)
+        // }
+        // "charAt" => Self::try_fold_string_char_at(*span, arguments, object, ctx),
+        // "charCodeAt" => Self::try_fold_string_char_code_at(*span, arguments, object, ctx),
+        // "concat" => self.try_fold_concat(*span, arguments, callee, ctx),
+        // "replace" | "replaceAll" => {
+        // Self::try_fold_string_replace(*span, arguments, name, object, ctx)
+        // }
+        // "fromCharCode" => Self::try_fold_string_from_char_code(*span, arguments, object, ctx),
+        // "toString" => Self::try_fold_to_string(*span, arguments, object, ctx),
+        // "pow" => self.try_fold_pow(*span, arguments, object, ctx),
+        // "isFinite" | "isNaN" | "isInteger" | "isSafeInteger" => {
+        // Self::try_fold_number_methods(*span, arguments, object, name, ctx)
+        // }
+        // "sqrt" | "cbrt" => Self::try_fold_roots(*span, arguments, name, object, ctx),
+        // "abs" | "ceil" | "floor" | "round" | "fround" | "trunc" | "sign" => {
+        // Self::try_fold_math_unary(*span, arguments, name, object, ctx)
+        // }
+        // "min" | "max" => Self::try_fold_math_variadic(*span, arguments, name, object, ctx),
+        // "of" => Self::try_fold_array_of(*span, arguments, name, object, ctx),
+        // "startsWith" => Self::try_fold_starts_with(*span, arguments, object, ctx),
+        // _ => None,
+        // };
+        // if let Some(replacement) = replacement {
+        // state.changed = true;
+        // *node = replacement;
+        // }
     }
 
     fn try_fold_string_casing(
