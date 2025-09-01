@@ -921,6 +921,7 @@ pub fn check_super(sup: &Super, ctx: &SemanticBuilder<'_>) {
             // 2. Class accessor value.
             // 3. Computed key of a class method / property / accessor.
             // 4. Decorators on a class method / property / accessor.
+            // 5. `TSIndexSignature`.
             // Find out which.
             //
             // Note: In terms of scopes, we could also be in a class's `super_class`,
@@ -972,13 +973,35 @@ pub fn check_super(sup: &Super, ctx: &SemanticBuilder<'_>) {
                         // If we were in the value, we would have exited loop already,
                         // because `value` is a function - which is handled below.
                     }
+                    AstKind::TSIndexSignature(sig) => {
+                        // I (@overlookmotel) don't think `Super` should appear in a type annotation.
+                        // e.g. `super` is parsed as an `IdentifierReference`, not `Super` in:
+                        // `class C { [keys: typeof super.foo]: typeof super.foo }`
+                        // But I did find one weird case where `super` *is* currently parsed as `Super`:
+                        // `class C { [keys: string]: typeof import('x', { with: super.foo }).y; }`
+                        //
+                        // So probably this branch is unreachable in practice. But handle it just in case,
+                        // to avoid falling through to `unreachable!()` below.
+                        //
+                        // If it *is* possible, I'm also not sure what correct behavior should be.
+                        // As best guess, treating it like class properties:
+                        // Treat `parameters` like computed key, `type_annotation` like initializer value.
+                        if sig.type_annotation.address() == previous_node_address {
+                            // In signature's `type_annotation` - `super.foo` is legal here, `super()` is not
+                            if super_call_span.is_some() {
+                                break 'scopes;
+                            }
+                            return;
+                        }
+                        // In `parameters` - treat like computed key
+                    }
                     _ => {
                         previous_node_address = ancestor_kind.address();
                         continue;
                     }
                 }
 
-                // `super` is in a computed key or decorator.
+                // `super` is in a computed key, decorator, or `TSIndexSignature`'s `parameters`.
                 //
                 // Whether it's legal or not depends on external context
                 // (whether this class is nested in another class or object method).

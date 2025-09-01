@@ -1,7 +1,7 @@
 parser_misc Summary:
-AST Parsed     : 48/48 (100.00%)
-Positive Passed: 48/48 (100.00%)
-Negative Passed: 79/79 (100.00%)
+AST Parsed     : 49/49 (100.00%)
+Positive Passed: 49/49 (100.00%)
+Negative Passed: 80/80 (100.00%)
 
   × Cannot assign to 'arguments' in strict mode
    ╭─[misc/fail/arguments-eval.ts:1:10]
@@ -2732,6 +2732,54 @@ Negative Passed: 79/79 (100.00%)
      ·                                   ─────
  144 │   },
      ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions inside constructors.
+   ╭─[misc/fail/oxc-13284.ts:6:46]
+ 5 │ class C extends Super {
+ 6 │   [keys: string]: typeof import('x', { with: super() }).y;
+   ·                                              ───────
+ 7 │ }
+   ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions inside constructors.
+    ╭─[misc/fail/oxc-13284.ts:10:37]
+  9 │ class D extends Super {
+ 10 │   [keys: typeof import('x', { with: super() }).y]: string;
+    ·                                     ───────
+ 11 │ }
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions inside constructors.
+    ╭─[misc/fail/oxc-13284.ts:16:50]
+ 15 │     class Inner {
+ 16 │       [keys: string]: typeof import('x', { with: super() }).y;
+    ·                                                  ───────
+ 17 │     }
+    ╰────
+
+  × 'super' can only be referenced in a derived class.
+    ╭─[misc/fail/oxc-13284.ts:21:1]
+ 20 │     
+ 21 │ ╭─▶ class Outer2 {
+ 22 │ │     constructor() {
+ 23 │ │       class Inner extends Super {
+ 24 │ │         [keys: typeof import('x', { with: super() }).y]: string;
+    · │                                           ─────
+ 25 │ │       }
+ 26 │ │     }
+ 27 │ ├─▶ }
+    · ╰──── class does not have `extends`
+ 28 │     
+    ╰────
+  help: either remove this super, or extend the class
+
+  × 'super' can only be referenced in members of derived classes or object literal expressions.
+    ╭─[misc/fail/oxc-13284.ts:35:37]
+ 34 │ class F {
+ 35 │   [keys: typeof import('x', { with: super.foo }).y]: string;
+    ·                                     ─────
+ 36 │ }
+    ╰────
 
   × 'super' can only be referenced in members of derived classes or object literal expressions.
    ╭─[misc/fail/oxc-13323.js:3:5]

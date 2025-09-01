@@ -1,6 +1,6 @@
 semantic_misc Summary:
-AST Parsed     : 48/48 (100.00%)
-Positive Passed: 31/48 (64.58%)
+AST Parsed     : 49/49 (100.00%)
+Positive Passed: 31/49 (63.27%)
 semantic Error: tasks/coverage/misc/pass/oxc-11593.ts
 Scope children mismatch:
 after transform: ScopeId(0): [ScopeId(1)]
@@ -194,6 +194,14 @@ rebuilt        : [ReferenceId(64), ReferenceId(68), ReferenceId(72), ReferenceId
 Unresolved reference IDs mismatch for "Function":
 after transform: [ReferenceId(75), ReferenceId(79), ReferenceId(109), ReferenceId(123), ReferenceId(137), ReferenceId(151), ReferenceId(165), ReferenceId(189), ReferenceId(203), ReferenceId(227), ReferenceId(241), ReferenceId(265), ReferenceId(279), ReferenceId(303), ReferenceId(432), ReferenceId(460), ReferenceId(464), ReferenceId(482), ReferenceId(486), ReferenceId(490), ReferenceId(496), ReferenceId(500), ReferenceId(504), ReferenceId(510), ReferenceId(514), ReferenceId(518)]
 rebuilt        : [ReferenceId(80), ReferenceId(86), ReferenceId(130), ReferenceId(162), ReferenceId(194), ReferenceId(315), ReferenceId(394), ReferenceId(422), ReferenceId(428), ReferenceId(435), ReferenceId(441), ReferenceId(448)]
+
+semantic Error: tasks/coverage/misc/pass/oxc-13284.ts
+Symbol reference IDs mismatch for "_super":
+after transform: SymbolId(13): [ReferenceId(8)]
+rebuilt        : SymbolId(4): []
+Unresolved references mismatch:
+after transform: ["Super", "super"]
+rebuilt        : ["Super"]
 
 semantic Error: tasks/coverage/misc/pass/oxc-2087.ts
 Scope children mismatch:
