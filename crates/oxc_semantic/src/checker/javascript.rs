@@ -1032,6 +1032,8 @@ pub fn check_super(sup: &Super, ctx: &SemanticBuilder<'_>) {
                 continue 'scopes;
             }
 
+            // See comment above. The `for` loop above cannot complete without exiting early
+            // with `return`, `break 'scopes`, or `continue 'scopes`.
             unreachable!();
         }
 
