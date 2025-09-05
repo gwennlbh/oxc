@@ -8,7 +8,7 @@ import {
   ThemeColor,
   Uri,
   window,
-  workspace
+  workspace,
 } from 'vscode';
 
 import {
@@ -187,13 +187,13 @@ export async function activate(context: ExtensionContext) {
     traceOutputChannel: outputChannel,
     middleware: {
       handleDiagnostics: (uri, diagnostics, next) => {
-          for (const diag of diagnostics) {
-            // https://github.com/oxc-project/oxc/issues/12404
-            if (typeof diag.code === 'object' && diag.code?.value === 'eslint-plugin-unicorn(filename-case)') {
-              diag.message += "\nYou may need to close the file and restart VSCode after renaming a file by only casing.";
-            }
+        for (const diag of diagnostics) {
+          // https://github.com/oxc-project/oxc/issues/12404
+          if (typeof diag.code === 'object' && diag.code?.value === 'eslint-plugin-unicorn(filename-case)') {
+            diag.message += '\nYou may need to close the file and restart VSCode after renaming a file by only casing.';
           }
-          next(uri, diagnostics);
+        }
+        next(uri, diagnostics);
       },
       workspace: {
         configuration: (params: ConfigurationParams) => {
