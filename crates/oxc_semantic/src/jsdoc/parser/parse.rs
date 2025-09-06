@@ -42,6 +42,7 @@ pub fn parse_jsdoc(
     // This includes package names when doing a @import
     let mut in_double_quotes = false;
     let mut in_single_quotes = false;
+    let mut escaped = false;
 
     // This flag tells us if we have already found the main comment block.
     // The first part before any @tags is considered the comment. Everything after is a tag.
@@ -64,6 +65,11 @@ pub fn parse_jsdoc(
             && !in_double_quotes
             && !in_single_quotes;
 
+        if escaped {
+            escaped = false;
+            continue;
+        }
+
         match ch {
             // NOTE: For now, only odd backtick(s) are handled.
             // - 1 backtick: inline code
@@ -76,6 +82,7 @@ pub fn parse_jsdoc(
                     in_backticks = !in_backticks;
                 }
             }
+            '\\' => escaped = true,
             '"' => in_double_quotes = !in_double_quotes,
             '\'' => in_single_quotes = !in_single_quotes,
             '{' => curly_brace_depth += 1,
