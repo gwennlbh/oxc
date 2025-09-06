@@ -74,8 +74,13 @@ check:
   cargo ck
 
 # Run all the tests
+[unix]
 test:
   cargo test --all-features
+
+[windows]
+test:
+  cargo test --all-features -- --skip sourcemap::stacktrace_is_correct --skip lint::test::ignore_patterns_with_symlink
 
 # Lint the whole project
 lint:
